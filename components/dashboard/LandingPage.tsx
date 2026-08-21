@@ -1,7 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
     ArrowRight,
     Bot,
@@ -28,20 +30,23 @@ const rise = {
 const capabilities = [
     {
         icon: Plane,
-        title: 'Live flight alternatives',
-        detail: 'Direct and connecting flight recovery options',
+        title: 'Flight Recovery',
+        detail: 'Live alternative flights',
+        status: 'Alternatives available',
         color: 'text-cyan-200',
     },
     {
         icon: TrainFront,
-        title: 'Rail routes by city',
-        detail: 'Station-aware train recovery between cities',
+        title: 'Rail Recovery',
+        detail: 'City-to-city train alternatives',
+        status: 'Routes detected',
         color: 'text-violet-200',
     },
     {
         icon: BusFront,
-        title: 'Bus backup routes',
-        detail: 'Alternative bus options when other plans fail',
+        title: 'Bus Recovery',
+        detail: 'Bus alternatives when plans change',
+        status: 'Backup routes found',
         color: 'text-orange-200',
     },
 ];
@@ -49,22 +54,22 @@ const capabilities = [
 const rescueSteps = [
     {
         icon: TriangleAlert,
-        title: '1. Understand',
+        title: 'Understand',
         text: 'Captures the disruption, budget, deadline, passengers, and priorities.',
     },
     {
         icon: Radar,
-        title: '2. Search',
+        title: 'Explore',
         text: 'Searches flights, trains, and bus alternatives between locations.',
     },
     {
         icon: Route,
-        title: '3. Compare',
-        text: 'Measures complete journey time, cost, connections, and recovery risk.',
+        title: 'Evaluate',
+        text: 'Measures journey time, cost, connections, and recovery risk.',
     },
     {
         icon: GitFork,
-        title: '4. Replan',
+        title: 'Rescue',
         text: 'Ranks the best recovery plan before your deadline is lost.',
     },
 ];
@@ -72,24 +77,69 @@ const rescueSteps = [
 const team = [
     {
         name: 'Shaista Meher',
-        initials: 'SM',
+        alt: 'Shaista Meher avatar',
+        avatar: '/images/Shaista.jpg',
         accent: 'from-cyan-400 to-blue-500',
+        glow: 'border-cyan-400/40 shadow-[0_0_18px_rgba(34,211,238,0.35)]',
     },
     {
         name: 'Shreya Bhatta',
-        initials: 'SB',
+        alt: 'Shreya Bhatta avatar',
+        avatar: '/images/Shreya.jpg',
         accent: 'from-violet-400 to-fuchsia-500',
+        glow: 'border-violet-400/40 shadow-[0_0_18px_rgba(216,180,254,0.35)]',
     },
     {
         name: 'Archit Bhattacharya',
-        initials: 'AB',
+        alt: 'Archit Bhattacharya avatar',
+        avatar: '/images/Archit.webp',
         accent: 'from-orange-400 to-rose-500',
+        glow: 'border-orange-400/40 shadow-[0_0_18px_rgba(251,146,60,0.35)]',
     },
 ];
 
+const rescueConsoleSteps = [
+    'Scanning flights, rail & bus schedules',
+    'Testing connections against deadline',
+    'Ranking cost, speed & risk',
+];
+
+const rescueEvaluationMetrics = [
+    { label: 'Arrival', value: '06:40 AM' },
+    { label: 'Budget', value: '₹7,450' },
+    { label: 'Connections', value: '1 stop' },
+    { label: 'Risk', value: 'Low' },
+];
+
 export function LandingPage() {
+    const [activeConsoleStep, setActiveConsoleStep] = useState(0);
+    const [reduceMotion, setReduceMotion] = useState(false);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+        const updatePreference = () => setReduceMotion(mediaQuery.matches);
+        updatePreference();
+
+        if (mediaQuery.matches) {
+            mediaQuery.addEventListener?.('change', updatePreference);
+            return () => mediaQuery.removeEventListener?.('change', updatePreference);
+        }
+
+        const interval = window.setInterval(() => {
+            setActiveConsoleStep((current) => (current + 1) % 4);
+        }, 2600);
+
+        mediaQuery.addEventListener?.('change', updatePreference);
+
+        return () => {
+            window.clearInterval(interval);
+            mediaQuery.removeEventListener?.('change', updatePreference);
+        };
+    }, []);
+
     return (
-        <div className="landing-shell -mx-4 -mt-20 min-h-screen overflow-hidden px-4 pb-16 pt-28 text-slate-100">
+        <div className="landing-shell -mt-20 min-h-screen overflow-hidden px-4 pb-16 pt-28 text-slate-100">
             <div className="landing-grid-shine" />
             <div className="landing-orb landing-orb-one" />
             <div className="landing-orb landing-orb-two" />
@@ -100,6 +150,7 @@ export function LandingPage() {
                     initial="hidden"
                     animate="show"
                     transition={{ staggerChildren: 0.11 }}
+                    className="min-w-0"
                 >
                     <motion.div
                         variants={rise}
@@ -174,130 +225,200 @@ export function LandingPage() {
                     initial={{ opacity: 0, scale: 0.95, y: 18 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ delay: 0.25, duration: 0.65 }}
-                    className="landing-console relative rounded-3xl border border-white/10 p-4 shadow-2xl shadow-cyan-950/50 sm:p-5"
+                    className="landing-console relative min-w-0 rounded-3xl border border-white/10 p-4 shadow-2xl shadow-cyan-950/50 sm:p-5"
                 >
-                    <div className="mb-5 flex items-center justify-between">
+                    <div className="mb-5 flex items-center justify-between gap-3">
                         <div className="flex gap-1.5">
                             <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
                             <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
                             <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                         </div>
-                        <span className="text-xs font-medium text-slate-500">
-                            LIVE RESCUE PLAN
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(74,222,128,0.9)] animate-pulse" />
+                            <span className="text-[10px] font-bold tracking-[.18em] text-emerald-300">
+                                RESCUE AGENT ACTIVE
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4">
-                        <div className="flex items-start gap-3">
-                            <div className="rounded-xl bg-rose-400/15 p-2 text-rose-300">
-                                <TriangleAlert size={20} />
-                            </div>
+                    <AnimatePresence mode="wait">
+                        {activeConsoleStep === 0 && (
+                            <motion.div
+                                key="disruption"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.28, ease: 'easeOut' }}
+                                className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-xl bg-rose-400/15 p-2 text-rose-300">
+                                        <TriangleAlert size={20} />
+                                    </div>
 
-                            <div>
-                                <p className="font-bold text-white">
-                                    Flight cancelled · CCU → DEL
+                                    <div>
+                                        <p className="font-bold text-white">
+                                            Flight cancelled · CCU → DEL
+                                        </p>
+                                        <p className="mt-1 text-sm text-rose-100/70">
+                                            Arrival deadline: tomorrow, 10:00 AM
+                                        </p>
+                                    </div>
+
+                                    <span className="ml-auto rounded-full bg-rose-400/15 px-2 py-1 text-[10px] font-bold text-rose-200">
+                                        CRITICAL
+                                    </span>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {activeConsoleStep === 1 && (
+                            <motion.div
+                                key="searching"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.28, ease: 'easeOut' }}
+                                className="my-4 space-y-3"
+                            >
+                                <p className="px-1 text-xs font-bold tracking-[.14em] text-slate-500">
+                                    SEARCHING FOR ALTERNATIVES
                                 </p>
-                                <p className="mt-1 text-sm text-rose-100/70">
-                                    Arrival deadline: tomorrow, 10:00 AM
+
+                                {rescueConsoleSteps.map((step, index) => (
+                                    <div key={step} className="flex items-center gap-3 text-sm">
+                                        <span
+                                            className={`flex h-7 w-7 items-center justify-center rounded-full ${index === 2
+                                                    ? 'bg-cyan-300 text-slate-950'
+                                                    : 'bg-emerald-400/15 text-emerald-300'
+                                                }`}
+                                        >
+                                            {index < 2 ? (
+                                                <CheckCircle2 size={15} />
+                                            ) : (
+                                                <Bot size={15} className="animate-pulse" />
+                                            )}
+                                        </span>
+                                        <span className="text-slate-300">{step}</span>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        )}
+
+                        {activeConsoleStep === 2 && (
+                            <motion.div
+                                key="evaluating"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.28, ease: 'easeOut' }}
+                                className="my-4 space-y-3"
+                            >
+                                <p className="px-1 text-xs font-bold tracking-[.14em] text-slate-500">
+                                    EVALUATING OPTIONS
                                 </p>
-                            </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {rescueEvaluationMetrics.map((metric) => (
+                                        <div
+                                            key={metric.label}
+                                            className="rounded-xl border border-cyan-400/15 bg-slate-950/35 p-2.5"
+                                        >
+                                            <p className="text-slate-500">{metric.label}</p>
+                                            <p className="mt-1 font-bold text-white">{metric.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
 
-                            <span className="ml-auto rounded-full bg-rose-400/15 px-2 py-1 text-[10px] font-bold text-rose-200">
-                                CRITICAL
-                            </span>
-                        </div>
-                    </div>
+                        {activeConsoleStep === 3 && (
+                            <motion.div
+                                key="ready"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.28, ease: 'easeOut' }}
+                                className="rounded-2xl border border-cyan-300/25 bg-slate-950/55 p-4"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold tracking-wider text-cyan-200">
+                                        RECOMMENDED RESCUE
+                                    </span>
+                                    <span className="rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-bold text-emerald-300">
+                                        LOW RISK
+                                    </span>
+                                </div>
 
-                    <div className="my-4 space-y-3">
-                        <p className="px-1 text-xs font-bold tracking-[.14em] text-slate-500">
-                            AGENT IS REPLANNING
-                        </p>
+                                <div className="mt-3 flex items-center gap-2 text-sm font-bold text-white">
+                                    <span>CCU</span>
+                                    <span className="h-px flex-1 bg-gradient-to-r from-cyan-300 to-blue-500" />
+                                    <Plane size={16} className="text-cyan-300" />
+                                    <span className="h-px flex-1 bg-gradient-to-r from-blue-500 to-cyan-300" />
+                                    <span>DEL</span>
+                                </div>
 
-                        {[
-                            'Scanning flights, rail & bus schedules',
-                            'Testing connections against deadline',
-                            'Ranking cost, speed & risk',
-                        ].map((step, index) => (
-                            <div key={step} className="flex items-center gap-3 text-sm">
-                                <span
-                                    className={`flex h-7 w-7 items-center justify-center rounded-full ${index === 2
-                                            ? 'bg-cyan-300 text-slate-950'
-                                            : 'bg-emerald-400/15 text-emerald-300'
-                                        }`}
-                                >
-                                    {index < 2 ? (
-                                        <CheckCircle2 size={15} />
-                                    ) : (
-                                        <Bot size={15} className="animate-pulse" />
-                                    )}
-                                </span>
-                                <span className="text-slate-300">{step}</span>
-                            </div>
-                        ))}
-                    </div>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <span className="landing-route-chip text-cyan-200">
+                                        <Plane size={13} /> Flight
+                                    </span>
+                                    <span className="landing-route-chip text-violet-200">
+                                        <TrainFront size={13} /> Train
+                                    </span>
+                                    <span className="landing-route-chip text-orange-200">
+                                        <BusFront size={13} /> Bus
+                                    </span>
+                                </div>
 
-                    <div className="rounded-2xl border border-cyan-300/25 bg-slate-950/55 p-4">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold tracking-wider text-cyan-200">
-                                BEST RECOVERY
-                            </span>
-                            <span className="rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-bold text-emerald-300">
-                                LOW RISK
-                            </span>
-                        </div>
-
-                        <div className="mt-3 flex items-center gap-2 text-sm font-bold text-white">
-                            <span>CCU</span>
-                            <span className="h-px flex-1 bg-gradient-to-r from-cyan-300 to-blue-500" />
-                            <Plane size={16} className="text-cyan-300" />
-                            <span className="h-px flex-1 bg-gradient-to-r from-blue-500 to-cyan-300" />
-                            <span>DEL</span>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="landing-route-chip text-cyan-200">
-                                <Plane size={13} /> Flight
-                            </span>
-                            <span className="landing-route-chip text-violet-200">
-                                <TrainFront size={13} /> Train
-                            </span>
-                            <span className="landing-route-chip text-orange-200">
-                                <BusFront size={13} /> Bus
-                            </span>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                            <div>
-                                <p className="text-slate-500">Arrival</p>
-                                <p className="mt-1 font-bold text-white">06:40 AM</p>
-                            </div>
-                            <div>
-                                <p className="text-slate-500">Budget</p>
-                                <p className="mt-1 font-bold text-white">₹7,450</p>
-                            </div>
-                            <div>
-                                <p className="text-slate-500">Buffer</p>
-                                <p className="mt-1 font-bold text-emerald-300">3h 20m</p>
-                            </div>
-                        </div>
-                    </div>
+                                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                                    <div>
+                                        <p className="text-slate-500">Arrival</p>
+                                        <p className="mt-1 font-bold text-white">06:40 AM</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-500">Budget</p>
+                                        <p className="mt-1 font-bold text-white">₹7,450</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-500">Buffer</p>
+                                        <p className="mt-1 font-bold text-emerald-300">3h 20m</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </motion.div>
             </section>
 
             <section className="relative mx-auto max-w-6xl py-10">
                 <div className="grid gap-3 rounded-2xl border border-white/8 bg-white/[.035] p-4 sm:grid-cols-3 sm:p-5">
-                    {capabilities.map(({ icon: Icon, title, detail, color }) => (
+                    {capabilities.map(({ icon: Icon, title, detail, status, color }, index) => (
                         <motion.div
-                            whileHover={{ y: -5, scale: 1.02 }}
                             key={title}
-                            className="landing-capability flex items-center gap-3 rounded-xl p-3"
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="landing-capability group relative flex items-center gap-3 rounded-xl p-3"
                         >
+                            <motion.div
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-0 rounded-xl border border-cyan-300/0"
+                                animate={{
+                                    boxShadow:
+                                        index === 0
+                                            ? '0 0 0 rgba(103,232,249,0), 0 0 0 rgba(103,232,249,0)'
+                                            : '0 0 18px rgba(103,232,249,0.12), 0 0 0 rgba(103,232,249,0)',
+                                }}
+                                transition={{ duration: 0.3, ease: 'easeOut' }}
+                            />
                             <div className={`rounded-xl bg-white/5 p-2.5 ${color}`}>
                                 <Icon size={20} />
                             </div>
-                            <div>
+                            <div className="min-w-0 flex-1">
                                 <p className="font-bold text-white">{title}</p>
                                 <p className="mt-0.5 text-xs text-slate-400">{detail}</p>
+                                <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium tracking-[.14em] text-slate-300 uppercase">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(74,222,128,0.9)] animate-pulse" />
+                                    {status}
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -319,16 +440,42 @@ export function LandingPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     {rescueSteps.map(({ icon: Icon, title, text }, index) => (
                         <motion.div
+                            animate={{
+                                y: activeConsoleStep === index ? -8 : 0,
+                                borderColor:
+                                    activeConsoleStep === index
+                                        ? 'rgba(103, 232, 249, 0.55)'
+                                        : 'rgba(255, 255, 255, 0.10)',
+                                boxShadow:
+                                    activeConsoleStep === index
+                                        ? '0 0 28px rgba(34, 211, 238, 0.18)'
+                                        : '0 0 0 rgba(34, 211, 238, 0)',
+                            }}
                             whileHover={{ y: -8 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.45, ease: 'easeOut' }}
                             key={title}
-                            className="landing-feature-card rounded-2xl p-5"
+                            className="landing-feature-card rounded-2xl border p-5"
                         >
-                            <span className="text-xs font-black text-cyan-300/60">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-cyan-300/60">
                                 0{index + 1}
-                            </span>
-                            <div className="mt-5 text-cyan-200">
-                                <Icon size={27} />
+                                </span>
+                                <span
+                                    className={`text-[10px] font-bold tracking-[.14em] transition-colors ${activeConsoleStep === index
+                                            ? 'text-cyan-200'
+                                            : 'text-slate-600'
+                                        }`}
+                                >
+                                    {activeConsoleStep === index ? 'ACTIVE' : 'STANDBY'}
+                                </span>
                             </div>
+                            <motion.div
+                                animate={{ scale: activeConsoleStep === index ? 1.12 : 1 }}
+                                transition={{ duration: reduceMotion ? 0 : 0.35 }}
+                                className="mt-5 w-fit text-cyan-200"
+                            >
+                                <Icon size={27} />
+                            </motion.div>
                             <h3 className="mt-5 text-lg font-bold text-white">{title}</h3>
                             <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
                         </motion.div>
@@ -342,7 +489,7 @@ export function LandingPage() {
                         <div className="inline-flex items-center gap-2 text-cyan-200">
                             <Users size={18} />
                             <span className="text-xs font-bold tracking-[.18em]">
-                                BUILT FOR THE HACKATHON
+                                MEET THE TEAM
                             </span>
                         </div>
 
@@ -364,9 +511,17 @@ export function LandingPage() {
                                 className="landing-team-card rounded-2xl p-5 text-center"
                             >
                                 <div
-                                    className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${member.accent} text-lg font-black text-white shadow-lg`}
+                                    className={`mx-auto flex h-[120px] w-[120px] overflow-hidden rounded-full border bg-gradient-to-br ${member.accent} p-[2px] ${member.glow}`}
                                 >
-                                    {member.initials}
+                                    <div className="h-full w-full overflow-hidden rounded-full bg-slate-950/20">
+                                        <Image
+                                            src={member.avatar}
+                                            alt={member.alt}
+                                            width={120}
+                                            height={120}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
                                 </div>
                                 <h3 className="mt-4 font-bold text-white">{member.name}</h3>
                                 <p className="mt-1 text-xs text-slate-400">
