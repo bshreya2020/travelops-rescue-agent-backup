@@ -68,3 +68,11 @@ export function clearSavedTrips() {
 
     window.localStorage.removeItem(STORAGE_KEY);
 }
+
+export function deleteTripsByIds(ids: string[]): void {
+    if (typeof window === 'undefined') return;
+
+    const current = getSavedTrips();
+    const updated = current.filter((trip) => !ids.includes(trip.id));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+}
