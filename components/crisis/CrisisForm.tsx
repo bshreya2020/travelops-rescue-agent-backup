@@ -776,8 +776,8 @@ export function CrisisForm() {
                 <option value="risk">Lowest Risk</option>
               </select>
 
-              {/* Train type — only shown when trains are in view */}
-              {(transportFilter === 'bus' || transportFilter === 'all') && busTypes.length > 0 && <>
+              {/* Train type — only for All or Train tab */}
+              {(transportFilter === 'all' || transportFilter === 'train') && busTypes.length > 0 && <>
                 <label className="text-xs font-semibold text-slate-400">Train type</label>
                 <select value={busTypeFilter} onChange={(e) => setBusTypeFilter(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200">
                   <option value="all">All</option>
