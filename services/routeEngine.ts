@@ -94,12 +94,10 @@ export function generateRoutes(crisis: TravelCrisis): GeneratedRoutes {
   const now = new Date();
   const deadlineMins = diffMinutes(now, deadlineDate);
 
+  // lookupHub now always returns a HubInfo (real or synthetic) — never null
   const originHub = lookupHub(origin);
   const destHub = lookupHub(destination);
 
-  // If we don't have verified hub data for one or both places, we do NOT
-  // fabricate a plausible-looking airport/station. We surface that clearly
-  // instead, so the UI can show "limited data" rather than a fake place.
   const unresolvedPlaces = [
     !isKnownPlace(origin) ? origin : null,
     !isKnownPlace(destination) ? destination : null,
@@ -108,18 +106,19 @@ export function generateRoutes(crisis: TravelCrisis): GeneratedRoutes {
   const seed = (origin + destination).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const routes: TravelRoute[] = [];
 
-  // ── Option A: Direct flight — only if BOTH cities have a real airport ──
-  if (originHub?.airport && destHub?.airport) {
+  // ── Option A: Direct flight ──────────────────────────────────
+  // Skip if both airports resolve to the same IATA code (city pair has no flight)
+  if (originHub.airport && destHub.airport && originHub.airport.iata !== destHub.airport.iata) {
     routes.push(
       buildFlightRoute(originHub, destHub, seed, now, deadlineDate, deadlineMins, maxBudget, currency, priority, 'direct')
     );
   }
 
-  // ── Option B: Connecting flight via a real hub city ──────────
-  if (!preferences.preferDirect && originHub?.airport && destHub?.airport) {
+  // ── Option B: Connecting flight ──────────────────────────────
+  if (!preferences.preferDirect && originHub.airport && destHub.airport && originHub.airport.iata !== destHub.airport.iata) {
     const hubCandidates = ['mumbai', 'hyderabad', 'chennai', 'bengaluru', 'pune']
       .map((k) => lookupHub(k))
-      .filter((h): h is HubInfo => h !== null && h.city !== originHub.city && h.city !== destHub.city);
+      .filter((h) => h.city !== originHub.city && h.city !== destHub.city);
 
     if (hubCandidates.length > 0) {
       const midHub = pick(hubCandidates, seed + 6);
@@ -129,19 +128,20 @@ export function generateRoutes(crisis: TravelCrisis): GeneratedRoutes {
     }
   }
 
-  // ── Option C: Train — only if BOTH cities have a real rail station ──
-  if (!preferences.avoidBus && originHub?.railStation && destHub?.railStation) {
+  // ── Option C: Train ──────────────────────────────────────────
+  if (originHub.railStation && destHub.railStation) {
     routes.push(
       buildTrainRoute(originHub, destHub, seed, now, deadlineDate, deadlineMins, maxBudget, currency, priority)
     );
   }
 
-  // ── Option D: Bus — only if BOTH cities have a real bus stand ──
-  if (!preferences.avoidBus && originHub?.busStand && destHub?.busStand) {
+  // ── Option D: Bus ────────────────────────────────────────────
+  if (!preferences.avoidBus && originHub.busStand && destHub.busStand) {
     routes.push(
       buildBusRoute(originHub, destHub, seed, now, deadlineDate, deadlineMins, maxBudget, currency, priority)
     );
   }
+
 
   const order: Record<RouteStatus, number> = { recommended: 0, viable: 1, rejected: 2 };
   routes.sort((a, b) => order[a.status] - order[b.status] || b.score - a.score);
