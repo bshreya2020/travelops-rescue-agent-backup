@@ -241,7 +241,7 @@ export function CrisisForm() {
   // Active filter chips
   const activeFilters: Array<{ label: string; clear: () => void }> = [
     ...(transportFilter !== 'all' ? [{ label: `Type: ${transportFilter}s`, clear: () => setTransportFilter('all') }] : []),
-    ...(busTypeFilter !== 'all' ? [{ label: `Bus type: ${busTypeFilter}`, clear: () => setBusTypeFilter('all') }] : []),
+    ...(busTypeFilter !== 'all' ? [{ label: `Train type: ${busTypeFilter}`, clear: () => setBusTypeFilter('all') }] : []),
     ...(operatorFilter !== 'all' ? [{ label: `Operator: ${operatorFilter}`, clear: () => setOperatorFilter('all') }] : []),
     ...(sourceFilter !== 'all' ? [{ label: `Source: ${sourceFilter}`, clear: () => setSourceFilter('all') }] : []),
     ...(withinBudgetOnly ? [{ label: 'Within budget', clear: () => setWithinBudgetOnly(false) }] : []),
@@ -776,9 +776,9 @@ export function CrisisForm() {
                 <option value="risk">Lowest Risk</option>
               </select>
 
-              {/* Bus type — only for buses */}
+              {/* Train type — only shown when trains are in view */}
               {(transportFilter === 'bus' || transportFilter === 'all') && busTypes.length > 0 && <>
-                <label className="text-xs font-semibold text-slate-400">Bus type</label>
+                <label className="text-xs font-semibold text-slate-400">Train type</label>
                 <select value={busTypeFilter} onChange={(e) => setBusTypeFilter(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200">
                   <option value="all">All</option>
                   {busTypes.map((t) => <option key={t} value={t}>{t}</option>)}
