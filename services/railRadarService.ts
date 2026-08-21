@@ -13,7 +13,26 @@ const CITY_STATION_HINTS: Record<string, Station[]> = {
   mumbai: [{ code: 'CSMT', name: 'Chhatrapati Shivaji Maharaj Terminus', city: 'Mumbai' }, { code: 'MMCT', name: 'Mumbai Central', city: 'Mumbai' }, { code: 'BDTS', name: 'Bandra Terminus', city: 'Mumbai' }],
   bengaluru: [{ code: 'SBC', name: 'KSR Bengaluru', city: 'Bengaluru' }, { code: 'YPR', name: 'Yesvantpur Junction', city: 'Bengaluru' }],
   chennai: [{ code: 'MAS', name: 'Chennai Central', city: 'Chennai' }, { code: 'TBM', name: 'Tambaram', city: 'Chennai' }],
-  hyderabad: [{ code: 'SC', name: 'Secunderabad Junction', city: 'Hyderabad' }, { code: 'KCG', name: 'Kacheguda', city: 'Hyderabad' }],
+  hyderabad: [{ code: 'SC', name: 'Secunderabad Junction', city: 'Hyderabad' }, { code: 'KCG', name: 'Kacheguda', city: 'Hyderabad' }], siliguri: [
+    {
+      code: 'NJP',
+      name: 'New Jalpaiguri Junction',
+      city: 'Siliguri',
+    },
+    {
+      code: 'SGUJ',
+      name: 'Siliguri Junction',
+      city: 'Siliguri',
+    },
+  ],
+
+  durgapur: [
+    {
+      code: 'DGR',
+      name: 'Durgapur',
+      city: 'Durgapur',
+    },
+  ],
 };
 type TrainResult = {
   train: { number: string; name: string; type?: string; runDays?: string[] };
@@ -41,13 +60,42 @@ async function railRadar<T>(path: string): Promise<T> {
 }
 async function stationsFor(place: string): Promise<Station[]> {
   const city = cityFromPlace(place);
-  const hints = CITY_STATION_HINTS[city.toLowerCase()];
-  if (hints) return hints;
-  const stations = await railRadar<Station[]>(`/lookup/search/stations?q=${encodeURIComponent(city)}&limit=10`);
-  const exactCity = stations.filter((station) => station.city?.toLowerCase() === city.toLowerCase());
-  // A city can have multiple major stations (e.g. HWH/KOAA/SDAH in Kolkata).
-  // Query the first three exact-city matches rather than assuming one station.
-  return (exactCity.length ? exactCity : stations).slice(0, 3);
+  const hints = CITY_STATION_HINTS[city.toLowerCase()] ?? [];
+
+  let searchedStations: Station[] = [];
+
+  try {
+    searchedStations = await railRadar<Station[]>(
+      `/lookup/search/stations?q=${encodeURIComponent(city)}&limit=10`
+    );
+  } catch (error) {
+    // If RailRadar lookup fails but we have known major hubs, continue with them.
+    if (hints.length === 0) {
+      throw error;
+    }
+  }
+
+  const exactCityStations = searchedStations.filter(
+    (station) =>
+      station.city?.toLowerCase() === city.toLowerCase()
+  );
+
+  const dynamicStations =
+    exactCityStations.length > 0
+      ? exactCityStations
+      : searchedStations;
+
+  // Hints come first for special cities, then dynamically found stations.
+  // Duplicate station codes are removed.
+  const mergedStations = [...hints, ...dynamicStations];
+
+  const uniqueStations = Array.from(
+    new Map(
+      mergedStations.map((station) => [station.code, station])
+    ).values()
+  );
+
+  return uniqueStations.slice(0, 3);
 }
 const duration = (minutes: number) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 
@@ -56,14 +104,44 @@ export async function searchRailRadarRoutes(crisis: TravelCrisis): Promise<Trave
   if (!key()) return [];
   const [origins, destinations] = await Promise.all([stationsFor(crisis.origin), stationsFor(crisis.destination)]);
   if (!origins.length || !destinations.length) return [];
-  const pairs = origins.flatMap((origin) => destinations.filter((destination) => destination.code !== origin.code).map((destination) => ({ origin, destination })));
-  const pairResults = await Promise.all(pairs.map(async ({ origin, destination }) => {
-    const data = await railRadar<{ trains: TrainResult[] }>(`/trains/between/${encodeURIComponent(origin.code)}/${encodeURIComponent(destination.code)}?date=${dateForSearch(crisis)}&byCity=true&live=true`);
-    return data.trains.map((train) => ({ train, origin, destination }));
-  }));
+  const pairs = origins
+    .flatMap((origin) =>
+      destinations
+        .filter((destination) => destination.code !== origin.code)
+        .map((destination) => ({ origin, destination }))
+    )
+    .slice(0, 2);
+  const pairResults: Array<{
+    train: TrainResult;
+    origin: Station;
+    destination: Station;
+  }> = [];
+
+  for (const { origin, destination } of pairs) {
+    const data = await railRadar<{ trains: TrainResult[] }>(
+      `/trains/between/${encodeURIComponent(
+        origin.code
+      )}/${encodeURIComponent(destination.code)}?date=${dateForSearch(
+        crisis
+      )}&byCity=true&live=true`
+    );
+
+    pairResults.push(
+      ...data.trains.map((train) => ({
+        train,
+        origin,
+        destination,
+      }))
+    );
+
+    // Stop once a working direct station pair returns trains.
+    if (data.trains.length > 0) {
+      break;
+    }
+  }
   // The same train can be returned for more than one station pair. Keep it once.
   const unique = new Map<string, { train: TrainResult; origin: Station; destination: Station }>();
-  for (const result of pairResults.flat()) if (!unique.has(result.train.train.number)) unique.set(result.train.train.number, result);
+  for (const result of pairResults) if (!unique.has(result.train.train.number)) unique.set(result.train.train.number, result);
   if (unique.size === 0) throw new Error(`RailRadar returned no trains for station pairs: ${pairs.map((pair) => `${pair.origin.code}→${pair.destination.code}`).join(', ')}`);
   return [...unique.values()].map(({ train: item, origin, destination }) => {
     const delay = item.live?.delayMinutes ?? 0;

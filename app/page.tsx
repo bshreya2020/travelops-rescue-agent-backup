@@ -1,14 +1,10 @@
 import { PageLayout } from '@/components/layout/PageLayout';
-import { HeroSection } from '@/components/dashboard/HeroSection';
-import { QuickCrisisGrid } from '@/components/dashboard/QuickCrisisGrid';
-import { RecentRescues } from '@/components/dashboard/RecentRescues';
+import { LandingPage } from '@/components/dashboard/LandingPage';
 
 export default function DashboardPage() {
   return (
     <PageLayout>
-      <HeroSection />
-      <QuickCrisisGrid />
-      <RecentRescues />
+      <LandingPage />
     </PageLayout>
   );
 }

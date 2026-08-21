@@ -1,5 +1,6 @@
 'use client';
 
+import { saveSelectedTrip } from '@/services/tripHistoryService';
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -220,7 +221,16 @@ export function CrisisForm() {
   const busTypes = session ? [...new Set(session.routes.flatMap((route) => [route.category, route.vehicleType]).filter((value): value is string => Boolean(value)))] : [];
   const flightCount = session?.routes.filter((route) => route.primaryMode === 'flight').length ?? 0;
   const trainCount = session?.routes.filter((route) => route.primaryMode === 'train').length ?? 0;
+  const handleSelectRoute = (route: TravelRoute) => {
+    const currentCrisis = crisisState.currentCrisis;
 
+    if (!currentCrisis) {
+      return;
+    }
+
+    saveSelectedTrip(currentCrisis, route);
+    router.push('/trips');
+  };
   const steps: Step[] = ['type', 'details', 'preferences'];
   const stepLabels = ['Crisis Type', 'Trip Details', 'Preferences'];
 
@@ -632,7 +642,7 @@ export function CrisisForm() {
               route={route}
               maxBudget={crisisState.currentCrisis?.maxBudget ?? Number(budget)}
               researchPowered={dataSource === 'webcmd+gemini'}
-              onSelect={() => alert(`Route ${route.id} selected! (booking flow coming soon)`)}
+              onSelect={() => handleSelectRoute(route)}
             />
           ))}
           {filteredRoutes.length === 0 && <Card padding="md" className="text-center text-sm text-slate-500">No routes match these filters.</Card>}

@@ -183,3 +183,12 @@ export interface TripHistoryItem {
   finalArrival: string;
   date: string;
 }
+
+export interface SavedTrip extends TripHistoryItem {
+  primaryMode: TransportMode;
+  travelTime: string;
+  riskLevel: RiskLevel;
+  selectedRouteId: string;
+  priceAvailable: boolean;
+  savedAt: string;
+}

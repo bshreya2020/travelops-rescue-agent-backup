@@ -119,3 +119,172 @@ body {
   background: linear-gradient(to bottom, #2563eb, transparent);
   transform: translateX(-50%);
 }
+
+/* Landing page */
+.landing-shell {
+  background:
+    radial-gradient(circle at 78% 7%, rgba(37, 99, 235, 0.22), transparent 25rem),
+    radial-gradient(circle at 10% 35%, rgba(8, 145, 178, 0.14), transparent 28rem),
+    radial-gradient(circle at 50% 80%, rgba(147, 51, 234, 0.11), transparent 32rem),
+    #020818;
+}
+
+.landing-grid-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(103, 232, 249, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.08) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: linear-gradient(to bottom, black, transparent 80%);
+}
+
+.landing-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  opacity: 0.42;
+}
+
+.landing-orb-one {
+  width: 22rem;
+  height: 22rem;
+  top: 11rem;
+  right: -11rem;
+  background: #075985;
+  animation: drift 9s ease-in-out infinite;
+}
+
+.landing-orb-two {
+  width: 18rem;
+  height: 18rem;
+  top: 42rem;
+  left: -10rem;
+  background: #1d4ed8;
+  animation: drift 12s ease-in-out infinite reverse;
+}
+
+.landing-orb-three {
+  width: 15rem;
+  height: 15rem;
+  top: 80rem;
+  right: -7rem;
+  background: #7c3aed;
+  animation: drift 11s ease-in-out infinite;
+}
+
+.landing-gradient-text {
+  background: linear-gradient(105deg, #a5f3fc 4%, #22d3ee 45%, #a78bfa 94%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.landing-console {
+  background: linear-gradient(145deg,
+      rgba(15, 27, 58, 0.93),
+      rgba(2, 8, 24, 0.86));
+  backdrop-filter: blur(18px);
+}
+
+.landing-action {
+  display: inline-block;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.landing-action:hover {
+  transform: translateY(-3px) scale(1.02);
+  filter: brightness(1.15);
+}
+
+.landing-route-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  padding: 0.25rem 0.55rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.landing-capability {
+  transition:
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.landing-capability:hover {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 14px 30px rgba(34, 211, 238, 0.12);
+}
+
+.landing-feature-card {
+  background: linear-gradient(150deg,
+      rgba(12, 28, 65, 0.78),
+      rgba(5, 14, 36, 0.72));
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.landing-feature-card:hover {
+  border-color: rgba(103, 232, 249, 0.35);
+  box-shadow: 0 16px 38px rgba(2, 132, 199, 0.16);
+}
+
+.landing-team-card {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(145deg,
+      rgba(15, 32, 72, 0.72),
+      rgba(8, 17, 42, 0.8));
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.landing-team-card:hover {
+  border-color: rgba(196, 181, 253, 0.5);
+  box-shadow: 0 18px 36px rgba(124, 58, 237, 0.18);
+}
+
+.landing-cta {
+  background: linear-gradient(115deg,
+      rgba(8, 47, 73, 0.78),
+      rgba(30, 41, 112, 0.62) 52%,
+      rgba(88, 28, 135, 0.58));
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.06),
+    0 22px 70px rgba(8, 47, 73, 0.26);
+}
+
+@keyframes drift {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-16px, 22px, 0) scale(1.07);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-orb {
+    animation: none;
+  }
+
+  .landing-action,
+  .landing-capability,
+  .landing-feature-card,
+  .landing-team-card {
+    transition: none;
+  }
+}
