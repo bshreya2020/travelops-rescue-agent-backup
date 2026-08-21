@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchSerpApiFlights, suggestIndianPlaces } from '@/services/serpApiService';
 import { searchRailRadarRoutes } from '@/services/railRadarService';
-import type { TravelCrisis } from '@/types/travel';
+import { searchBusRoutes } from '@/services/busService';
+import type { TravelCrisis, TravelRoute } from '@/types/travel';
 
 /** Live Google Flights search through SerpApi using selected Indian airport codes. */
 export async function POST(request: NextRequest) {
@@ -35,19 +36,28 @@ export async function POST(request: NextRequest) {
       console.warn('[TravelOps] RailRadar search skipped:', (error as Error).message);
       return [];
     });
+    let busWarning: string | undefined;
+    const busRoutes = crisis.preferences.avoidBus ? [] : await searchBusRoutes(crisis).catch((error) => {
+      busWarning = `Bus results unavailable: ${(error as Error).message}`;
+      console.warn('[TravelOps] AbhiBus search failed:', (error as Error).message);
+      return [] as TravelRoute[];
+    });
     if (!railWarning && !process.env.RAILRADAR_API_KEY) {
-      railWarning = 'Train results unavailable: add RAILRADAR_API_KEY to frontend/.env.local, then restart the development server.';
+      railWarning = 'Train results unavailable: add RAILRADAR_API_KEY to .env.local, then restart the development server.';
     } else if (!railWarning && railRoutes.length === 0) {
       railWarning = `RailRadar returned no direct train schedules for ${crisis.origin} → ${crisis.destination} on ${crisis.departureDate ?? 'the selected date'}. Try another future date or nearby city/station.`;
     }
-    const routes = [...flightRoutes, ...railRoutes].sort((a, b) => b.score - a.score);
+    if (!busWarning && !crisis.preferences.avoidBus && busRoutes.length === 0) {
+      busWarning = `AbhiBus returned no direct bus schedules for ${crisis.origin} → ${crisis.destination} on ${crisis.departureDate ?? 'the selected date'}.`;
+    }
+    const routes = [...flightRoutes, ...railRoutes, ...busRoutes].sort((a, b) => b.score - a.score);
     return NextResponse.json({
       routes, totalFound: routes.length,
       eliminated: routes.filter((route) => route.status === 'rejected').length,
       viable: routes.filter((route) => route.status === 'viable').length,
       recommended: routes.filter((route) => route.status === 'recommended').length,
       source: 'serpapi', hubs: null,
-      providerWarnings: railWarning ? [railWarning] : [],
+      providerWarnings: [railWarning, busWarning].filter((warning): warning is string => Boolean(warning)),
       search: { origin, destination, maxConnections: 1 },
     });
   } catch (error) {
