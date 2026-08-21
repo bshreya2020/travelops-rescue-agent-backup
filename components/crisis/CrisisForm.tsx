@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Plane, TrainFront, GitFork, AlertCircle, Clock,
   MapPin, CalendarClock, Wallet, Target, Sliders, Users, ArrowRight, Zap,
-  RefreshCw, ChevronRight
+  RefreshCw, ChevronRight, Bus, SlidersHorizontal, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -18,7 +18,7 @@ import { agentService, getSessionHubs, getSessionWarnings } from '@/services/age
 import type { SearchResult } from '@/services/agentService';
 import type {
   CrisisType, Priority, TravelPreferences, PassengerCount,
-  AgentSession, TravelRoute, AgentActivity
+  AgentSession, TravelRoute, AgentActivity, TransportMode
 } from '@/types/travel';
 
 // ── Crisis type options ──────────────────────────────────────
@@ -98,6 +98,9 @@ export function CrisisForm() {
   const [withinBudgetOnly, setWithinBudgetOnly] = useState(false);
   const [deadlineOnly, setDeadlineOnly] = useState(false);
   const [directOnly, setDirectOnly] = useState(false);
+  // Transport type filter + modify search panel
+  const [transportFilter, setTransportFilter] = useState<'all' | TransportMode>('all');
+  const [showModifySearch, setShowModifySearch] = useState(false);
 
   // Pre-fill from demo mode
   useEffect(() => {
@@ -204,6 +207,7 @@ export function CrisisForm() {
   };
 
   const filteredRoutes = session ? [...session.routes]
+    .filter((route) => transportFilter === 'all' || route.primaryMode === transportFilter)
     .filter((route) => busTypeFilter === 'all' || route.category === busTypeFilter || route.vehicleType === busTypeFilter)
     .filter((route) => operatorFilter === 'all' || (route.operatorName ?? route.segments[0]?.carrier) === operatorFilter)
     .filter((route) => sourceFilter === 'all' || route.sources?.some((source) => source.name === sourceFilter))
@@ -221,15 +225,51 @@ export function CrisisForm() {
   const busTypes = session ? [...new Set(session.routes.flatMap((route) => [route.category, route.vehicleType]).filter((value): value is string => Boolean(value)))] : [];
   const flightCount = session?.routes.filter((route) => route.primaryMode === 'flight').length ?? 0;
   const trainCount = session?.routes.filter((route) => route.primaryMode === 'train').length ?? 0;
+  const busCount = session?.routes.filter((route) => route.primaryMode === 'bus').length ?? 0;
+
+  // Stats computed from the current transport filter
+  const statsBase = session
+    ? (transportFilter === 'all' ? session.routes : session.routes.filter((r) => r.primaryMode === transportFilter))
+    : [];
+  const filteredStats = {
+    found: statsBase.length,
+    eliminated: statsBase.filter((r) => r.status === 'rejected').length,
+    viable: statsBase.filter((r) => r.status === 'viable').length,
+    recommended: statsBase.filter((r) => r.status === 'recommended').length,
+  };
+
+  // Active filter chips
+  const activeFilters: Array<{ label: string; clear: () => void }> = [
+    ...(transportFilter !== 'all' ? [{ label: `Type: ${transportFilter}s`, clear: () => setTransportFilter('all') }] : []),
+    ...(busTypeFilter !== 'all' ? [{ label: `Bus type: ${busTypeFilter}`, clear: () => setBusTypeFilter('all') }] : []),
+    ...(operatorFilter !== 'all' ? [{ label: `Operator: ${operatorFilter}`, clear: () => setOperatorFilter('all') }] : []),
+    ...(sourceFilter !== 'all' ? [{ label: `Source: ${sourceFilter}`, clear: () => setSourceFilter('all') }] : []),
+    ...(withinBudgetOnly ? [{ label: 'Within budget', clear: () => setWithinBudgetOnly(false) }] : []),
+    ...(deadlineOnly ? [{ label: 'Meets deadline', clear: () => setDeadlineOnly(false) }] : []),
+    ...(directOnly ? [{ label: 'Direct only', clear: () => setDirectOnly(false) }] : []),
+  ];
+
+  const clearAllFilters = () => {
+    setTransportFilter('all');
+    setBusTypeFilter('all');
+    setOperatorFilter('all');
+    setSourceFilter('all');
+    setWithinBudgetOnly(false);
+    setDeadlineOnly(false);
+    setDirectOnly(false);
+  };
+
+  const deadlineDisplay = crisisState.currentCrisis?.deadline
+    ? new Date(crisisState.currentCrisis.deadline).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const departureDateDisplay = crisisState.currentCrisis?.departureDate
+    ? new Date(crisisState.currentCrisis.departureDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    : null;
   const handleSelectRoute = (route: TravelRoute) => {
     const currentCrisis = crisisState.currentCrisis;
-
-    if (!currentCrisis) {
-      return;
-    }
-
+    if (!currentCrisis) return;
+    // Save to trip history only — booking redirect is handled inside TravelResultCard
     saveSelectedTrip(currentCrisis, route);
-    router.push('/trips');
   };
   const steps: Step[] = ['type', 'details', 'preferences'];
   const stepLabels = ['Crisis Type', 'Trip Details', 'Preferences'];
@@ -536,30 +576,116 @@ export function CrisisForm() {
       {/* ── STEP 5: Results ── */}
       {step === 'results' && session && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-white font-bold text-xl">Routes Found</h2>
-                {dataSource && (
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                    dataSource === 'webcmd+gemini'
-                      ? 'bg-green-500/15 text-green-400 border-green-500/30'
-                      : dataSource === 'gemini'
-                      ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                      : 'bg-slate-700/50 text-slate-400 border-slate-600/30'
-                  }`}>
-                    {dataSource === 'webcmd+gemini' ? '🌐 LIVE' : dataSource === 'gemini' ? '🤖 AI' : '🔧 DEMO'}
-                  </span>
-                )}
+
+          {/* ── Search summary bar ── */}
+          <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Rescue Results</p>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-semibold text-white">{origin}</span>
+                  <ArrowRight size={13} className="text-cyan-500" />
+                  <span className="font-semibold text-white">{destination}</span>
+                  {departureDateDisplay && <span className="text-slate-400">· {departureDateDisplay}</span>}
+                  {deadlineDisplay && <span className="text-slate-400">· Arrive by {deadlineDisplay}</span>}
+                  <span className="text-slate-400">· Budget {currency}{Number(budget).toLocaleString()}</span>
+                  {dataSource && (
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                      dataSource === 'webcmd+gemini' ? 'bg-green-500/15 text-green-400 border-green-500/30'
+                        : dataSource === 'gemini' ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                        : 'bg-slate-700/50 text-slate-400 border-slate-600/30'
+                    }`}>
+                      {dataSource === 'webcmd+gemini' ? '🌐 LIVE' : dataSource === 'gemini' ? '🤖 AI' : '🔧 DEMO'}
+                    </span>
+                  )}
+                </div>
               </div>
-              <p className="text-slate-400 text-sm">{origin} → {destination} · {session.routes.length} options · {flightCount} flights · {trainCount} trains</p>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" icon={<SlidersHorizontal size={14} />} onClick={() => setShowModifySearch((v) => !v)}>
+                  Modify Search
+                </Button>
+                <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => setStep('type')}>
+                  New Search
+                </Button>
+              </div>
             </div>
-            <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => setStep('type')}>
-              New Search
-            </Button>
           </div>
 
-          {providerWarnings.map((warning) => <div key={warning} className="rounded-lg border border-yellow-500/30 bg-yellow-900/20 px-4 py-3 text-sm text-yellow-200">{warning}</div>)}
+          {/* ── Modify Search Panel ── */}
+          {showModifySearch && (
+            <Card padding="lg" className="border border-cyan-500/30 bg-slate-900/80">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Modify Search</h3>
+                <button onClick={() => setShowModifySearch(false)} className="text-slate-400 hover:text-white"><X size={16} /></button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">From</label>
+                  <div className="relative">
+                    <MapPin size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type="text" value={origin} onFocus={() => setActivePlaceField('origin')}
+                      onChange={(e) => { setOrigin(e.target.value); setOriginCode(undefined); setActivePlaceField('origin'); }}
+                      className="w-full pl-7 pr-2 py-2 bg-slate-800 border border-slate-600/40 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500/50" />
+                    {activePlaceField === 'origin' && placeSuggestions.length > 0 && (
+                      <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-xl">
+                        {placeSuggestions.map((place) => <button key={place.id} type="button" onMouseDown={(e) => { e.preventDefault(); selectPlace('origin', place); }} className="block w-full px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800">{place.name} <span className="text-cyan-400">({place.iataCode})</span></button>)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">To</label>
+                  <div className="relative">
+                    <MapPin size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type="text" value={destination} onFocus={() => setActivePlaceField('destination')}
+                      onChange={(e) => { setDestination(e.target.value); setDestinationCode(undefined); setActivePlaceField('destination'); }}
+                      className="w-full pl-7 pr-2 py-2 bg-slate-800 border border-slate-600/40 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500/50" />
+                    {activePlaceField === 'destination' && placeSuggestions.length > 0 && (
+                      <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-slate-600 bg-slate-900 shadow-xl">
+                        {placeSuggestions.map((place) => <button key={place.id} type="button" onMouseDown={(e) => { e.preventDefault(); selectPlace('destination', place); }} className="block w-full px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800">{place.name} <span className="text-cyan-400">({place.iataCode})</span></button>)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Travel date</label>
+                  <input type="date" value={departureDate} min={indiaDate()} onChange={(e) => setDepartureDate(e.target.value)}
+                    className="w-full px-2 py-2 bg-slate-800 border border-slate-600/40 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500/50 [color-scheme:dark]" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Arrival deadline</label>
+                  <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)}
+                    className="w-full px-2 py-2 bg-slate-800 border border-slate-600/40 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500/50 [color-scheme:dark]" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Budget</label>
+                  <div className="relative">
+                    <Wallet size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)}
+                      className="w-full pl-7 pr-2 py-2 bg-slate-800 border border-slate-600/40 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500/50" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Priority</label>
+                  <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}
+                    className="w-full px-2 py-2 bg-slate-800 border border-slate-600/40 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500/50">
+                    {PRIORITY_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4 justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setShowModifySearch(false)}>Cancel</Button>
+                <Button variant="primary" size="sm" icon={<Zap size={13} />} onClick={async () => { setShowModifySearch(false); await handleStartSearch(); }}>
+                  Search Again
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Provider warnings */}
+          {providerWarnings.map((warning) => (
+            <div key={warning} className="rounded-lg border border-yellow-500/30 bg-yellow-900/20 px-4 py-3 text-sm text-yellow-200">{warning}</div>
+          ))}
 
           {/* Hub resolution notice */}
           {hubs && (
@@ -591,13 +717,32 @@ export function CrisisForm() {
             </div>
           )}
 
+          {/* ── Transport type selector ── */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { key: 'all', label: `All ${session.routes.length}`, icon: null },
+              { key: 'flight', label: `✈ ${flightCount} Flights`, icon: null },
+              { key: 'train', label: `🚆 ${trainCount} Trains`, icon: null },
+              { key: 'bus', label: `🚌 ${busCount} Buses`, icon: null },
+            ] as const).map(({ key, label }) => (
+              <button key={key} onClick={() => { setTransportFilter(key === 'all' ? 'all' : key as TransportMode); setBusTypeFilter('all'); setOperatorFilter('all'); }}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                  transportFilter === key
+                    ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-300'
+                    : 'border-slate-700/60 bg-slate-800/40 text-slate-400 hover:text-white hover:border-slate-600'
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
 
+          {/* ── Stat counters (filtered) ── */}
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: 'Found', value: session.stats.totalFound, color: 'text-white' },
-              { label: 'Eliminated', value: session.stats.eliminated, color: 'text-red-400' },
-              { label: 'Viable', value: session.stats.viable, color: 'text-yellow-400' },
-              { label: 'Recommended', value: session.stats.recommended, color: 'text-cyan-400' },
+              { label: 'Found', value: filteredStats.found, color: 'text-white' },
+              { label: 'Eliminated', value: filteredStats.eliminated, color: 'text-red-400' },
+              { label: 'Viable', value: filteredStats.viable, color: 'text-yellow-400' },
+              { label: 'Recommended', value: filteredStats.recommended, color: 'text-cyan-400' },
             ].map((s) => (
               <Card key={s.label} padding="sm" className="text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -606,6 +751,7 @@ export function CrisisForm() {
             ))}
           </div>
 
+          {/* Search summary card */}
           {session.routes[0]?.segments[0] && (() => {
             const first = session.routes[0].segments[0];
             const last = session.routes[0].segments[session.routes[0].segments.length - 1];
@@ -619,33 +765,92 @@ export function CrisisForm() {
             </Card>;
           })()}
 
+          {/* ── Filter bar ── */}
           <Card padding="sm" className="border border-slate-700/70">
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-xs font-semibold text-slate-400">Sort by</label>
-              <select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-200"><option value="recommended">Recommended</option><option value="cheapest">Cheapest</option><option value="fastest">Fastest</option><option value="risk">Lowest Risk</option></select>
-              <label className="text-xs font-semibold text-slate-400">Bus type</label>
-              <select value={busTypeFilter} onChange={(event) => setBusTypeFilter(event.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-200"><option value="all">All</option>{busTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200">
+                <option value="recommended">Recommended</option>
+                <option value="cheapest">Cheapest</option>
+                <option value="fastest">Fastest</option>
+                <option value="risk">Lowest Risk</option>
+              </select>
+
+              {/* Bus type — only for buses */}
+              {(transportFilter === 'bus' || transportFilter === 'all') && busTypes.length > 0 && <>
+                <label className="text-xs font-semibold text-slate-400">Bus type</label>
+                <select value={busTypeFilter} onChange={(e) => setBusTypeFilter(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200">
+                  <option value="all">All</option>
+                  {busTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </>}
+
               <label className="text-xs font-semibold text-slate-400">Operator</label>
-              <select value={operatorFilter} onChange={(event) => setOperatorFilter(event.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-200"><option value="all">All operators</option>{operators.map((operator) => <option key={operator} value={operator}>{operator}</option>)}</select>
+              <select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200">
+                <option value="all">All operators</option>
+                {operators.map((op) => <option key={op} value={op}>{op}</option>)}
+              </select>
+
               <label className="text-xs font-semibold text-slate-400">Source</label>
-              <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-200"><option value="all">All sources</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select>
-              <label className="ml-1 inline-flex items-center gap-1.5 text-xs text-slate-300"><input type="checkbox" checked={withinBudgetOnly} onChange={(event) => setWithinBudgetOnly(event.target.checked)} /> Within budget</label>
-              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300"><input type="checkbox" checked={deadlineOnly} onChange={(event) => setDeadlineOnly(event.target.checked)} /> Meets deadline</label>
-              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300"><input type="checkbox" checked={directOnly} onChange={(event) => setDirectOnly(event.target.checked)} /> Direct only</label>
+              <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200">
+                <option value="all">All sources</option>
+                {sources.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+
+              <label className="ml-1 inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={withinBudgetOnly} onChange={(e) => setWithinBudgetOnly(e.target.checked)} /> Within budget
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={deadlineOnly} onChange={(e) => setDeadlineOnly(e.target.checked)} /> Meets deadline
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={directOnly} onChange={(e) => setDirectOnly(e.target.checked)} /> Direct only
+              </label>
             </div>
+
+            {/* Active filter chips */}
+            {activeFilters.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-700/50">
+                {activeFilters.map((f) => (
+                  <span key={f.label} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-300">
+                    {f.label}
+                    <button onClick={f.clear} className="ml-0.5 hover:text-white"><X size={11} /></button>
+                  </span>
+                ))}
+                <button onClick={clearAllFilters} className="text-xs text-slate-500 hover:text-slate-300 underline ml-1">Clear all</button>
+              </div>
+            )}
           </Card>
 
-          {/* Routes */}
-          {filteredRoutes.map((route) => (
-            <TravelResultCard
-              key={route.id}
-              route={route}
-              maxBudget={crisisState.currentCrisis?.maxBudget ?? Number(budget)}
-              researchPowered={dataSource === 'webcmd+gemini'}
-              onSelect={() => handleSelectRoute(route)}
-            />
-          ))}
-          {filteredRoutes.length === 0 && <Card padding="md" className="text-center text-sm text-slate-500">No routes match these filters.</Card>}
+          {/* ── Routes ── */}
+          {filteredRoutes.length > 0
+            ? filteredRoutes.map((route) => (
+                <TravelResultCard
+                  key={route.id}
+                  route={route}
+                  maxBudget={crisisState.currentCrisis?.maxBudget ?? Number(budget)}
+                  researchPowered={dataSource === 'webcmd+gemini'}
+                  onSelect={() => handleSelectRoute(route)}
+                />
+              ))
+            : (
+              <Card padding="md" className="text-center space-y-3">
+                <p className="text-slate-400 text-sm">
+                  {transportFilter !== 'all'
+                    ? `No ${transportFilter}s match your current requirements.`
+                    : 'No routes match these filters.'}
+                </p>
+                <div className="flex justify-center gap-2">
+                  {activeFilters.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearAllFilters}>Clear Filters</Button>
+                  )}
+                  <Button variant="ghost" size="sm" icon={<SlidersHorizontal size={13} />} onClick={() => setShowModifySearch(true)}>
+                    Modify Search
+                  </Button>
+                </div>
+              </Card>
+            )
+          }
         </div>
       )}
     </div>
