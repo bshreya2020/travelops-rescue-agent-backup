@@ -53,7 +53,7 @@ export async function suggestIndianPlaces(query: string): Promise<SerpPlace[]> {
 
 const duration = (total: number) => `${Math.floor(total / 60)}h ${total % 60}m`;
 const displayTime = (value: string) => { const [, hour = '0', minute = '00'] = value.match(/\s(\d{2}):(\d{2})/) ?? []; const h = Number(hour); return `${((h + 11) % 12) + 1}:${minute} ${h >= 12 ? 'PM' : 'AM'}`; };
-function apiKey() { const key = process.env.SERPAPI_KEY; if (!key) throw new Error('SERPAPI_KEY is not configured. Add it to .env.local.'); return key; }
+function apiKey() { return process.env.SERPAPI_KEY ?? ''; }
 
 type SerpFlight = { airline?: string; flight_number?: string; duration?: number; departure_airport: { name: string; id: string; time: string }; arrival_airport: { name: string; id: string; time: string } };
 type SerpOffer = { flights: SerpFlight[]; layovers?: Array<{ duration: number; name: string; id: string }>; total_duration: number; price?: number; airline_logo?: string };
