@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-liberation \
     fonts-noto-color-emoji \
+    xvfb \
+    xauth \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
@@ -24,4 +26,4 @@ ENV PORT=10000
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "webcmd doctor && npm run start"]
+CMD ["sh", "-c", "xvfb-run -a sh -c 'webcmd doctor && npm run start'"]
