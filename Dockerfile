@@ -26,4 +26,4 @@ ENV PORT=10000
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "xvfb-run -a sh -c 'webcmd doctor && npm run start'"]
+CMD ["sh", "-c", "xvfb-run -a npm run start"]
